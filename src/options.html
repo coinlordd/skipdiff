@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SkipDiff</title>
+  <style>
+    /* IBM Plex, Latin subset, bundled under fonts/ (SIL Open Font License). Local files: no network, no flash. */
+    @font-face { font-family: 'IBM Plex Sans'; font-weight: 400; font-style: normal; font-display: block; src: url(../fonts/ibm-plex-sans-latin-400-normal.woff2) format('woff2'); }
+    @font-face { font-family: 'IBM Plex Sans'; font-weight: 500; font-style: normal; font-display: block; src: url(../fonts/ibm-plex-sans-latin-500-normal.woff2) format('woff2'); }
+    @font-face { font-family: 'IBM Plex Sans'; font-weight: 600; font-style: normal; font-display: block; src: url(../fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-weight: 400; font-style: normal; font-display: block; src: url(../fonts/ibm-plex-mono-latin-400-normal.woff2) format('woff2'); }
+    @font-face { font-family: 'IBM Plex Mono'; font-weight: 500; font-style: normal; font-display: block; src: url(../fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2'); }
+    :root {
+      --bg: #0f1411; --panel: #151b17; --gutter: #121814; --line: #26302a; --field: #2f3a33;
+      --text: #e6ede8; --muted: #93a197; --faint: #4f5d53; --code: #c9d4cc;
+      --accent: #3fb950; --accent-line: #2f6b3d; --accent-bg: #14231a;
+      --danger: #ff8c82; --danger-line: #5c2b2b; --link: #5fd178; --link-hover: #8be39d;
+      --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; width: 360px; background: var(--bg); color: var(--text); font: 13px/1.4 var(--sans); }
+    button, input, textarea { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+    code { font-family: var(--mono); color: var(--code); }
+    a { color: var(--link); } a:hover { color: var(--link-hover); }
+    .muted { color: var(--muted); }
+    .caption { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .hint { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin: 0; }
+
+    header { display: flex; align-items: center; gap: 10px; padding: 14px 16px 0; }
+    header img { width: 22px; height: 22px; }
+    header .name { font: 500 14px var(--mono); }
+    #status { margin-left: auto; font: 11px var(--mono); color: var(--muted); }
+
+    [role=tablist] { display: flex; gap: 4px; padding: 12px 12px 0; border-bottom: 1px solid var(--line); }
+    [role=tab] { height: 36px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent;
+                 background: none; font-weight: 500; color: var(--muted); cursor: pointer; }
+    [role=tab][aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); }
+    [role=tabpanel] { display: flex; flex-direction: column; gap: 16px; padding: 16px; min-height: 380px; }
+    [role=tabpanel][hidden] { display: none; }
+
+    .group { display: flex; flex-direction: column; gap: 6px; }
+    .editor { display: flex; height: 160px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
+    .editor pre, .editor textarea { margin: 0; padding: 10px; font: 12px/1.7 var(--mono); }
+    .editor pre { min-width: 30px; padding-right: 8px; text-align: right; color: var(--faint); background: var(--gutter);
+                  border-right: 1px solid var(--line); overflow: hidden; user-select: none; }
+    .editor textarea { flex: 1; border: 0; resize: none; background: none; white-space: pre; overflow: auto; }
+    .editor textarea:focus-visible { outline: none; }
+    .editor:focus-within { border-color: var(--accent); }
+
+    fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    legend { padding: 0 0 6px; }
+    .choice { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line);
+              border-radius: 8px; background: var(--panel); cursor: pointer; }
+    .choice:has(input:checked) { border-color: var(--accent-line); background: var(--accent-bg); }
+    .choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .choice input { appearance: none; flex: none; width: 14px; height: 14px; margin: 2px 0 0; border-radius: 50%;
+                    border: 1.5px solid var(--faint); background: var(--bg); }
+    .choice input:checked { border: 4px solid var(--accent); }
+    .choice input:focus-visible { outline: none; }
+    .choice span { display: flex; flex-direction: column; gap: 2px; }
+    .choice b { font-weight: 500; }
+
+    .count { display: flex; align-items: baseline; gap: 8px; }
+    .count output { font: 500 32px var(--mono); }
+    .rows { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; }
+    .row + .row { border-top: 1px solid var(--line); }
+    .row div { display: flex; align-items: center; gap: 6px; }
+    .row input { width: 56px; height: 30px; padding: 0 8px; text-align: right; border: 1px solid var(--field); border-radius: 6px;
+                 background: var(--bg); font: 12.5px var(--mono); }
+    .row input:invalid { border-color: var(--danger); }
+    .row .unit { width: 30px; color: var(--muted); }
+    #clear { height: 36px; border: 1px solid var(--danger-line); border-radius: 8px; background: none; font-weight: 500;
+             color: var(--danger); cursor: pointer; }
+    #clear:disabled { opacity: .45; cursor: default; }
+
+    footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
+             border-top: 1px solid var(--line); font-size: 12px; }
+    #reset { padding: 0; border: 0; background: none; color: var(--link); text-decoration: underline; cursor: pointer; }
+    #reset:hover { color: var(--link-hover); }
+    #version { font: 11px var(--mono); color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="../icons/icon48.png" alt="">
+    <span class="name">skipdiff</span>
+    <span id="status" role="status"></span>
+  </header>
+
+  <div role="tablist" aria-label="Settings">
+    <button role="tab" id="tab-rules" aria-controls="panel-rules" aria-selected="true">Rules</button>
+    <button role="tab" id="tab-memory" aria-controls="panel-memory" aria-selected="false" tabindex="-1">Memory</button>
+  </div>
+
+  <section role="tabpanel" id="panel-rules" aria-labelledby="tab-rules">
+    <div class="group">
+      <label for="patterns" class="caption">Skip paths matching</label>
+      <div class="editor">
+        <pre id="gutter" aria-hidden="true">1</pre>
+        <textarea id="patterns" spellcheck="false" autocomplete="off" wrap="off"></textarea>
+      </div>
+      <p class="hint"><code>*</code> one folder · <code>**</code> any depth · <code>#</code> comment.
+        No slash means file name only.</p>
+    </div>
+
+    <fieldset>
+      <legend class="caption">On match</legend>
+      <label class="choice">
+        <input type="radio" name="mode" value="viewed">
+        <span><b>Mark as viewed</b><span class="hint">GitHub folds it. Untick and it stays open.</span></span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="mode" value="collapse">
+        <span><b>Collapse only</b><span class="hint">Nothing stored. Opens again on reload.</span></span>
+      </label>
+    </fieldset>
+  </section>
+
+  <section role="tabpanel" id="panel-memory" aria-labelledby="tab-memory" hidden>
+    <div class="count"><output id="count">0</output><span class="muted">PRs remembered</span></div>
+    <p class="hint">SkipDiff stores which files it ticked "Viewed", per PR. A file you untick is never ticked again.</p>
+    <div class="rows">
+      <div class="row">
+        <label for="memoryDays">Forget a PR after</label>
+        <div><input id="memoryDays" type="text" inputmode="numeric" pattern="[1-9][0-9]*" required><span class="unit">days</span></div>
+      </div>
+      <div class="row">
+        <label for="memoryMax">Keep at most</label>
+        <div><input id="memoryMax" type="text" inputmode="numeric" pattern="[1-9][0-9]*" required><span class="unit">PRs</span></div>
+      </div>
+    </div>
+    <button id="clear" type="button">Clear memory</button>
+  </section>
+
+  <footer>
+    <button id="reset" type="button">Reset to defaults</button>
+    <span id="version"></span>
+  </footer>
+
+  <script src="defaults.js"></script>
+  <script src="memory.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
