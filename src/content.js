@@ -44,7 +44,9 @@ const ADAPTERS = [
       if (tip) return /collapse/i.test(tip.textContent);
       return !!t.querySelector('svg.octicon-chevron-down');
     },
-    viewed: (el) => el.querySelector('[data-diff-header-wrapper] button[aria-pressed]'),
+    // Rich-diff files (e.g. .md) add icon-only aria-pressed toggles before "Viewed"; only "Viewed" has text.
+    viewed: (el) => [...el.querySelectorAll('[data-diff-header-wrapper] button[aria-pressed]')]
+      .find((b) => b.textContent.trim()) || null,
     isViewed: (box) => box.getAttribute('aria-pressed') === 'true',
   },
 ];
@@ -66,6 +68,32 @@ function remember(key, path) {
   chrome.storage.local.set({ ticked });
 }
 
+// The React view renders its buttons before hydration, and GitHub drops
+// clicks made before then. So click, check, and retry until "Viewed" sticks;
+// the path is remembered only once the tick is confirmed.
+const TICK_RETRY_MS = 500;
+const TICK_MAX_TRIES = 10;
+
+function tickViewed(adapter, el, key, path, tries) {
+  if (!el.isConnected) return;
+  const box = adapter.viewed(el);
+  if (!box) return;
+  if (adapter.isViewed(box)) {
+    remember(key, path);
+    // Some views may not collapse on "Viewed"; check once the UI settled.
+    setTimeout(() => {
+      if (adapter.isExpanded(el)) {
+        const t = adapter.toggle(el);
+        if (t) t.click();
+      }
+    }, 300);
+    return;
+  }
+  if (tries >= TICK_MAX_TRIES) return;
+  box.click();
+  setTimeout(() => tickViewed(adapter, el, key, path, tries + 1), TICK_RETRY_MS);
+}
+
 function handle(adapter, el, key) {
   if (el.hasAttribute(DONE_ATTR)) return;
   const path = adapter.path(el);
@@ -76,17 +104,7 @@ function handle(adapter, el, key) {
     // GitHub collapses the diff itself when "Viewed" is ticked.
     if (wasTicked(ticked, key, path)) return; // ticked before; the user may have unticked it on purpose
     const box = adapter.viewed(el);
-    if (box && !adapter.isViewed(box)) {
-      box.click();
-      remember(key, path);
-      // Some views may not collapse on "Viewed"; check once the UI settled.
-      setTimeout(() => {
-        if (adapter.isExpanded(el)) {
-          const t = adapter.toggle(el);
-          if (t) t.click();
-        }
-      }, 300);
-    }
+    if (box && !adapter.isViewed(box)) tickViewed(adapter, el, key, path, 0);
   } else if (adapter.isExpanded(el)) {
     const t = adapter.toggle(el);
     if (t) t.click();
