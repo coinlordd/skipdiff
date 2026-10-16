@@ -35,8 +35,9 @@ Defaults: on, `*.test.*`, `*.spec.*`, `__tests__/**`, and lock files
 ## The badge
 
 SkipDiff shows the PR's size without the hidden files next to GitHub's own
-line stats, for example `33 files · +1,303 −590 · hidden 651`. Click it to show the hidden diffs on
-this page; click again to hide them. Hover it to see what is hidden.
+line stats, for example `33 files · +1,303 −590 · hidden 651`. Click it to
+show the hidden diffs on this page; click again to hide them. Hover it to see
+what is hidden.
 
 The per-file list comes from the JSON that GitHub's page loads. On a direct
 page load it is already in the page. After an in-app navigation, SkipDiff
