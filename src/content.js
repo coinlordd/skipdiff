@@ -174,8 +174,11 @@ function fetchSummaries(url) {
     .catch(() => null);
 }
 
+// Each file header has the same span for its own stats; skip those.
+const DIFF_CONTAINERS = ADAPTERS.map((a) => a.container).join(', ');
 function statsAnchor() {
-  return [...document.querySelectorAll('span.sr-only')].find((e) => e.textContent.startsWith('Lines changed:'));
+  return [...document.querySelectorAll('span.sr-only')]
+    .find((e) => e.textContent.startsWith('Lines changed:') && !e.closest(DIFF_CONTAINERS));
 }
 
 function loadSummaries(anchor) {
@@ -301,9 +304,11 @@ chrome.storage.sync.get('settings')
   .catch(() => ({}))
   .then((sync) => {
     settings = normalizeSettings(sync && sync.settings);
-    scan();
     // GitHub navigates as a SPA (Turbo) and may replace <body>; observing the root catches every navigation.
-    new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true });
+    // Started before the first scan, so an error in a scan cannot stop it.
+    new MutationObserver(scheduleScan)
+      .observe(document.documentElement, { childList: true, subtree: true });
+    scan();
   });
 
 chrome.storage.onChanged.addListener((changes, area) => {
