@@ -1,9 +1,8 @@
 # SkipDiff
 
 Chrome extension that hides diffs on GitHub pull request "Files changed"
-pages (both the classic `/files` view and the new `/changes` view) when the
-file path matches one of your patterns. The file header stays; only the diff
-is hidden. Click a hidden file's expand arrow to show that one file. The
+pages when the file path matches one of your patterns. The file header stays;
+only the diff is hidden. Click a hidden file's expand arrow to show that one file. The
 default patterns target test files and lock files.
 
 SkipDiff only adds CSS to the page. It does not tick GitHub's "Viewed"
@@ -34,7 +33,7 @@ Defaults: on, `*.test.*`, `*.spec.*`, `__tests__/**`, and lock files
 
 ## The badge
 
-On the new `/changes` view, SkipDiff shows the PR's size without the hidden
+SkipDiff shows the PR's size without the hidden
 files next to GitHub's own line stats, for example
 `33 files · +1,303 −590 · hidden 651`. Click it to show the hidden diffs on
 this page; click again to hide them. Hover it to see what is hidden.

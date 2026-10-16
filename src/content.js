@@ -3,54 +3,37 @@
 // "Viewed" state is left to the user. Next to GitHub's stats, a badge shows the
 // PR's size without the skipped files; a click on it shows or hides them.
 
-const FILES_URL = /^\/[^/]+\/[^/]+\/pull\/\d+\/(files|changes)(\/|$)/;
+const FILES_URL = /^\/[^/]+\/[^/]+\/pull\/\d+\/changes(\/|$)/; // GitHub redirects the old /files here
 const SKIP_ATTR = 'data-skipdiff';
 const HIDE_STYLE_ID = 'skipdiff-hide';
 
-// One adapter per GitHub UI variant: a diff container, its path, the part of it
-// to hide and its expand/collapse button (selectors relative to the container),
-// and optionally that button's icon, turned to "collapsed" while hidden, and
-// the header parts that need a closed bottom edge while the body is hidden.
-const ADAPTERS = [
-  {
-    container: 'div.file.js-file',
-    path: (el) => {
-      const header = el.querySelector('.file-header[data-path]');
-      if (header) return header.getAttribute('data-path');
-      const entry = el.closest('copilot-diff-entry[data-file-path]');
-      return entry ? entry.getAttribute('data-file-path') : el.getAttribute('data-tagsearch-path');
-    },
-    body: '.js-file-content',
-    toggle: 'button.js-details-target',
-  },
-  {
-    // React "Files changed" view (2026), served at /pull/N/changes. It renders
-    // only the diffs near the viewport. A diff's id is `diff-<pathDigest>`.
-    container: 'div[role="region"][id^="diff-"]',
-    path: (el) => {
-      const heading = el.querySelector('h3[id^="heading-"] code');
-      if (heading) return heading.textContent.replace(/\u200e/g, '').trim();
-      const withPath = el.querySelector('[data-file-path]');
-      return withPath ? withPath.getAttribute('data-file-path') : null;
-    },
-    body: '> :not(:first-child)',
-    toggle: '[data-diff-header-wrapper] button',
-    chevron: '> :first-child svg.octicon-chevron-down',
-    // The header's wrapper has square bottom corners and clips the header's border.
-    wrapper: '> :first-child',
-    header: '> :first-child > [class*="diff-file-header"]',
-  },
-];
-const REACT = ADAPTERS[1];
+// GitHub's "Files changed" view. It renders only the diffs near the viewport.
+// A diff's id is `diff-<pathDigest>`. Selectors after `container` are relative to it.
+const DIFF = {
+  container: 'div[role="region"][id^="diff-"]',
+  body: '> :not(:first-child)',
+  toggle: '[data-diff-header-wrapper] button', // the first one is expand/collapse
+  chevron: '> :first-child svg.octicon-chevron-down', // turned to "collapsed" while hidden
+  // The header's wrapper has square bottom corners and clips the header's border.
+  wrapper: '> :first-child',
+  header: '> :first-child > [class*="diff-file-header"]',
+};
+
+function diffPath(el) {
+  const heading = el.querySelector('h3[id^="heading-"] code');
+  if (heading) return heading.textContent.replace(/\u200e/g, '').trim();
+  const withPath = el.querySelector('[data-file-path]');
+  return withPath ? withPath.getAttribute('data-file-path') : null;
+}
 
 let settings = normalizeSettings();
 let showSkipped = false; // the badge toggle; resets when the PR's numbers change
 let revealed = new Set(); // paths opened by hand with their chevron; reset with showSkipped
 
 // ---- hiding
-// Two ways, same CSS: diffs in the DOM get SKIP_ATTR from scan(); for the React
-// view we also write one rule per skipped file id from GitHub's file list, so
-// a diff that renders on scroll is hidden from its first paint.
+// Two ways, same CSS: one rule per skipped file id from GitHub's file list, so a
+// diff that renders on scroll is hidden from its first paint; and SKIP_ATTR on
+// diffs in the DOM from scan(), for when the file list failed to load.
 
 // The file list split by the patterns. Cached: scan() runs on every DOM change.
 let derived = null;
@@ -77,14 +60,13 @@ function hideCss(active) {
   if (showSkipped) return COLLAPSED_FIX;
   const d = derive();
   if (cssMemo && cssMemo.d === d && cssMemo.revealed === revealed.size) return cssMemo.css;
-  const hidden = ADAPTERS.map((a) => [a, `${a.container}[${SKIP_ATTR}="skip"]`]);
+  const hidden = [`${DIFF.container}[${SKIP_ATTR}="skip"]`];
   if (d) {
-    for (const f of d.skip) if (!revealed.has(f.path)) hidden.push([REACT, `#diff-${f.pathDigest}`]);
+    for (const f of d.skip) if (!revealed.has(f.path)) hidden.push(`#diff-${f.pathDigest}`);
   }
-  const bodies = hidden.map(([a, sel]) => `${sel} ${a.body}`);
-  const part = (key) => hidden.filter(([a]) => a[key]).map(([a, sel]) => `${sel} ${a[key]}`).join(',\n');
+  const part = (key) => hidden.map((sel) => `${sel} ${DIFF[key]}`).join(',\n');
   const round = 'border-bottom-left-radius: 6px !important; border-bottom-right-radius: 6px !important;';
-  const css = `${COLLAPSED_FIX}\n${bodies.join(',\n')} { display: none !important; }\n`
+  const css = `${COLLAPSED_FIX}\n${part('body')} { display: none !important; }\n`
     + `${part('chevron')} { transform: rotate(-90deg); }\n`
     + `${part('wrapper')} { ${round} }\n`
     + `${part('header')} { margin-bottom: 0 !important; border-bottom-width: 1px !important;`
@@ -105,9 +87,9 @@ function applyHideCss() {
   if (style.textContent !== css) style.textContent = css;
 }
 
-function mark(adapter, el) {
+function mark(el) {
   if (el.hasAttribute(SKIP_ATTR)) return;
-  const path = adapter.path(el);
+  const path = diffPath(el);
   if (!path) return;
   const skip = matchesPath(path, settings.patterns);
   el.setAttribute(SKIP_ATTR, !skip ? 'keep' : revealed.has(path) ? 'shown' : 'skip');
@@ -118,21 +100,18 @@ function mark(adapter, el) {
 // it. Later clicks on it go to GitHub as usual.
 function onClick(e) {
   if (!settings.enabled || showSkipped || !(e.target instanceof Element)) return;
-  for (const a of ADAPTERS) {
-    const button = e.target.closest(a.toggle);
-    const el = button && button.closest(a.container);
-    if (!el || button !== el.querySelector(a.toggle)) continue;
-    const path = a.path(el);
-    const body = el.querySelector(':scope ' + a.body);
-    if (!path || revealed.has(path) || !matchesPath(path, settings.patterns)) return;
-    if (!body || getComputedStyle(body).display !== 'none') return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    revealed.add(path);
-    el.setAttribute(SKIP_ATTR, 'shown');
-    applyHideCss();
-    return;
-  }
+  const button = e.target.closest(DIFF.toggle);
+  const el = button && button.closest(DIFF.container);
+  if (!el || button !== el.querySelector(DIFF.toggle)) return;
+  const path = diffPath(el);
+  const body = el.querySelector(':scope ' + DIFF.body);
+  if (!path || revealed.has(path) || !matchesPath(path, settings.patterns)) return;
+  if (!body || getComputedStyle(body).display !== 'none') return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  revealed.add(path);
+  el.setAttribute(SKIP_ATTR, 'shown');
+  applyHideCss();
 }
 
 // Patterns changed: every diff must be matched again.
@@ -173,10 +152,9 @@ function fetchSummaries(url) {
 }
 
 // Each file header has the same span for its own stats; skip those.
-const DIFF_CONTAINERS = ADAPTERS.map((a) => a.container).join(', ');
 function statsAnchor() {
   return [...document.querySelectorAll('span.sr-only')]
-    .find((e) => e.textContent.startsWith('Lines changed:') && !e.closest(DIFF_CONTAINERS));
+    .find((e) => e.textContent.startsWith('Lines changed:') && !e.closest(DIFF.container));
 }
 
 function loadSummaries(anchor) {
@@ -201,7 +179,7 @@ function loadSummaries(anchor) {
   });
 }
 
-// ---- review-size badge (React view only)
+// ---- review-size badge
 
 const BADGE_ID = 'skipdiff-badge';
 // Colors from the popup's palette (options.html), so the badge reads as SkipDiff.
@@ -285,11 +263,7 @@ function scan() {
   } else {
     removeBadge();
   }
-  if (active) {
-    for (const adapter of ADAPTERS) {
-      for (const el of document.querySelectorAll(adapter.container)) mark(adapter, el);
-    }
-  }
+  if (active) for (const el of document.querySelectorAll(DIFF.container)) mark(el);
   applyHideCss();
 }
 
