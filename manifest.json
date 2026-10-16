@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SkipDiff",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Collapses diffs that match your patterns on GitHub pull requests. Defaults to test files.",
   "permissions": ["storage"],
   "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
