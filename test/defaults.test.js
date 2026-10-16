@@ -2,24 +2,29 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { SKIPDIFF_DEFAULTS, normalizeSettings } = require('../src/defaults.js');
 
-test('defaults include memory limits', () => {
-  assert.equal(SKIPDIFF_DEFAULTS.memoryDays, 30);
-  assert.equal(SKIPDIFF_DEFAULTS.memoryMax, 100);
-});
-
 test('normalize fills missing settings from defaults', () => {
   assert.deepEqual(normalizeSettings(undefined), { ...SKIPDIFF_DEFAULTS });
-  assert.deepEqual(normalizeSettings({ mode: 'collapse' }), { ...SKIPDIFF_DEFAULTS, mode: 'collapse' });
+  assert.deepEqual(normalizeSettings({ enabled: false }), { ...SKIPDIFF_DEFAULTS, enabled: false });
 });
 
 test('normalize keeps valid stored values', () => {
-  const s = { patterns: ['a/**'], mode: 'collapse', memoryDays: 7, memoryMax: 5 };
+  const s = { enabled: false, patterns: ['a/**'] };
   assert.deepEqual(normalizeSettings(s), s);
 });
 
 test('normalize replaces invalid values with defaults', () => {
-  const s = normalizeSettings({ patterns: 'x', mode: 'nope', memoryDays: 0, memoryMax: 2.5 });
-  assert.deepEqual(s, { ...SKIPDIFF_DEFAULTS });
-  assert.equal(normalizeSettings({ memoryDays: '7' }).memoryDays, 30);
-  assert.equal(normalizeSettings({ memoryMax: -1 }).memoryMax, 100);
+  assert.deepEqual(normalizeSettings({ enabled: 'no', patterns: 'x' }), { ...SKIPDIFF_DEFAULTS });
+});
+
+test('normalize drops settings of older versions', () => {
+  const s = normalizeSettings({ patterns: ['a'], mode: 'viewed', memoryDays: 30, memoryMax: 100 });
+  assert.deepEqual(s, { enabled: true, patterns: ['a'] });
+});
+
+test('default patterns match lock files', () => {
+  const { matchesPath } = require('../src/matcher.js');
+  for (const p of ['yarn.lock', 'pkg/Cargo.lock', 'package-lock.json', 'web/pnpm-lock.yaml', 'bun.lockb', 'go.sum']) {
+    assert.ok(matchesPath(p, SKIPDIFF_DEFAULTS.patterns), p);
+  }
+  assert.ok(!matchesPath('package.json', SKIPDIFF_DEFAULTS.patterns));
 });

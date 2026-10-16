@@ -11,10 +11,13 @@
     "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
   },
   "options_ui": { "page": "src/options.html", "open_in_tab": false },
+  "web_accessible_resources": [
+    { "resources": ["icons/icon32.png"], "matches": ["https://github.com/*"] }
+  ],
   "content_scripts": [
     {
       "matches": ["https://github.com/*"],
-      "js": ["src/defaults.js", "src/matcher.js", "src/memory.js", "src/content.js"],
+      "js": ["src/defaults.js", "src/matcher.js", "src/stats.js", "src/content.js"],
       "run_at": "document_idle"
     }
   ]

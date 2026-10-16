@@ -1,10 +1,13 @@
 # SkipDiff
 
-Chrome extension that folds diffs on GitHub pull request "Files changed"
+Chrome extension that hides diffs on GitHub pull request "Files changed"
 pages (both the classic `/files` view and the new `/changes` view) when the
-file path matches one of your patterns. By default it ticks the "Viewed"
-checkbox, so GitHub folds the diff itself. The default patterns target test
-files.
+file path matches one of your patterns. The file header stays; only the diff
+is hidden. Click a hidden file's expand arrow to show that one file. The
+default patterns target test files and lock files.
+
+SkipDiff only adds CSS to the page. It does not tick GitHub's "Viewed"
+checkbox, so "Viewed" stays yours.
 
 ## Install (unpacked)
 
@@ -17,40 +20,38 @@ files.
 Click the extension icon. The same page is also under Options in
 `chrome://extensions`. A change saves when you leave the field.
 
-The **Rules** tab:
+The **On/Off** switch in the header pauses SkipDiff. When off, every diff
+shows again.
 
-- **Skip paths matching**: patterns, one per line. `*` stays inside one path segment, `**`
-  crosses segments. A pattern without `/` matches the file name. A pattern
-  with `/` matches the full path or any directory suffix, so `test/**` also
-  matches `pkg/test/a.go`. Lines starting with `#` are ignored.
-- **On match**: **Mark as viewed** (GitHub folds the diff) or **Collapse
-  only** (nothing stored).
+- **Hide diffs matching**: patterns, one per line. `*` stays inside one path
+  segment, `**` crosses segments. A pattern without `/` matches the file name.
+  A pattern with `/` matches the full path or any directory suffix, so
+  `test/**` also matches `pkg/test/a.go`. Lines starting with `#` are ignored.
+- **Reset to defaults** resets all settings.
 
-The **Memory** tab:
+Defaults: on, `*.test.*`, `*.spec.*`, `__tests__/**`, and lock files
+(`*.lock`, `package-lock.json`, `pnpm-lock.yaml`, `bun.lockb`, `go.sum`).
 
-- **Forget a PR after** N days, and **keep at most** N PRs. See "What is stored".
-- **Clear memory** deletes all remembered ticks.
+## The badge
 
-**Reset to defaults** resets all settings. It does not clear the memory.
+On the new `/changes` view, SkipDiff shows the PR's size without the hidden
+files next to GitHub's own line stats, for example
+`33 files · +1,303 −590 · hidden 651`. Click it to show the hidden diffs on
+this page; click again to hide them. Hover it to see what is hidden.
 
-Defaults: `*.test.*`, `*.spec.*`, `__tests__/**`, "Mark as viewed", forget
-after 30 days, keep at most 100 PRs.
-
-With **Collapse only**, a file you expand by hand stays expanded until the
-next page load. With **Mark as viewed**, a file you untick is left alone on
-later visits to that PR.
+The per-file list comes from the JSON that GitHub's page loads. On a direct
+page load it is already in the page. After an in-app navigation, SkipDiff
+fetches it once from the same URL (no extra permissions, your session
+cookies). It loads it again when GitHub's own line stats change, for example
+after new commits. If that fails, there is no badge, and diffs are still
+hidden once they render.
 
 ## What is stored
 
-- `chrome.storage.sync` → `settings`: your patterns, mode and memory limits.
-- `chrome.storage.local` → `ticked`: per PR, the paths this extension marked
-  "Viewed", so a file you untick is never ticked again. A PR entry expires
-  a set number of days after the last tick in it (default 30). A set number
-  of PRs is kept (default 100); past that, the PR with the oldest last tick
-  is dropped first.
+- `chrome.storage.sync` → `settings`: the on/off switch and your patterns.
 
-Nothing else is stored. Which files were handled on the current page lives
-only in the DOM (`data-skipdiff` attribute) and resets on reload.
+Nothing else is stored. Version 0.1 stored the files it ticked "Viewed" in
+`chrome.storage.local`; SkipDiff deletes that data on its next run.
 
 ## Develop
 
