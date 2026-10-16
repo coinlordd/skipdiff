@@ -2,8 +2,8 @@
 
 Chrome extension that hides diffs on GitHub pull request "Files changed"
 pages when the file path matches one of your patterns. The file header stays;
-only the diff is hidden. Click a hidden file's expand arrow to show that one file. The
-default patterns target test files and lock files.
+only the diff is hidden. Click a hidden file's expand arrow to show that one
+file. The default patterns target test files and lock files.
 
 SkipDiff only adds CSS to the page. It does not tick GitHub's "Viewed"
 checkbox, so "Viewed" stays yours.
@@ -17,7 +17,8 @@ checkbox, so "Viewed" stays yours.
 ## Settings
 
 Click the extension icon. The same page is also under Options in
-`chrome://extensions`. A change saves when you leave the field.
+`chrome://extensions`. Patterns save when you leave the field; the switch
+saves at once.
 
 The **On/Off** switch in the header pauses SkipDiff. When off, every diff
 shows again.
@@ -33,9 +34,8 @@ Defaults: on, `*.test.*`, `*.spec.*`, `__tests__/**`, and lock files
 
 ## The badge
 
-SkipDiff shows the PR's size without the hidden
-files next to GitHub's own line stats, for example
-`33 files · +1,303 −590 · hidden 651`. Click it to show the hidden diffs on
+SkipDiff shows the PR's size without the hidden files next to GitHub's own
+line stats, for example `33 files · +1,303 −590 · hidden 651`. Click it to show the hidden diffs on
 this page; click again to hide them. Hover it to see what is hidden.
 
 The per-file list comes from the JSON that GitHub's page loads. On a direct
@@ -57,3 +57,8 @@ Nothing else is stored. Version 0.1 stored the files it ticked "Viewed" in
     npm test
 
 No build step. Edit, then reload the extension in `chrome://extensions`.
+
+Release: bump `version` in `manifest.json` and `package.json`, then make the
+Chrome Web Store zip:
+
+    zip -r skipdiff-<version>.zip manifest.json src icons fonts LICENSE -x '*.DS_Store'
