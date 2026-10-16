@@ -3,7 +3,7 @@
 // "Viewed" state is left to the user. Next to GitHub's stats, a badge shows the
 // PR's size without the skipped files; a click on it shows or hides them.
 
-const FILES_URL = /^(\/[^/]+\/[^/]+\/pull\/\d+)\/(files|changes)(\/|$)/;
+const FILES_URL = /^\/[^/]+\/[^/]+\/pull\/\d+\/(files|changes)(\/|$)/;
 const SKIP_ATTR = 'data-skipdiff';
 const HIDE_STYLE_ID = 'skipdiff-hide';
 
@@ -13,7 +13,6 @@ const HIDE_STYLE_ID = 'skipdiff-hide';
 // the header parts that need a closed bottom edge while the body is hidden.
 const ADAPTERS = [
   {
-    name: 'server-rendered',
     container: 'div.file.js-file',
     path: (el) => {
       const header = el.querySelector('.file-header[data-path]');
@@ -27,7 +26,6 @@ const ADAPTERS = [
   {
     // React "Files changed" view (2026), served at /pull/N/changes. It renders
     // only the diffs near the viewport. A diff's id is `diff-<pathDigest>`.
-    name: 'react',
     container: 'div[role="region"][id^="diff-"]',
     path: (el) => {
       const heading = el.querySelector('h3[id^="heading-"] code');
@@ -74,8 +72,8 @@ function derive() {
 const COLLAPSED_FIX = '[class*="diff-file-header"][class*="collapsed"] { margin-bottom: 0 !important; }';
 
 let cssMemo = null;
-function hideCss() {
-  if (!settings.enabled) return '';
+function hideCss(active) {
+  if (!active) return '';
   if (showSkipped) return COLLAPSED_FIX;
   const d = derive();
   if (cssMemo && cssMemo.d === d && cssMemo.revealed === revealed.size) return cssMemo.css;
@@ -96,7 +94,7 @@ function hideCss() {
 }
 
 function applyHideCss() {
-  const css = hideCss();
+  const css = hideCss(settings.enabled && FILES_URL.test(location.pathname));
   let style = document.getElementById(HIDE_STYLE_ID);
   if (!style) {
     if (!css) return;
@@ -279,11 +277,15 @@ function renderBadge(anchor) {
 // ---- main loop
 
 function scan() {
-  const anchor = FILES_URL.test(location.pathname) && settings.enabled ? statsAnchor() : null;
-  if (anchor) loadSummaries(anchor);
-  if (anchor) renderBadge(anchor);
-  else removeBadge();
-  if (settings.enabled && FILES_URL.test(location.pathname)) {
+  const active = settings.enabled && FILES_URL.test(location.pathname);
+  const anchor = active ? statsAnchor() : null;
+  if (anchor) {
+    loadSummaries(anchor);
+    renderBadge(anchor);
+  } else {
+    removeBadge();
+  }
+  if (active) {
     for (const adapter of ADAPTERS) {
       for (const el of document.querySelectorAll(adapter.container)) mark(adapter, el);
     }
